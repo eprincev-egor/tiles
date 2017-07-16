@@ -1,0 +1,17 @@
+{
+    "esversion": 7,
+    "strict": "global",
+    "browser": true,
+    "futurehostile": true,
+    "globals": {
+        "console": true,
+        "f": true,
+        "Game": true,
+        "Keyboard": true,
+        "App": true,
+        "Events": true,
+        "MouseControl": true,
+        "Polygon": true,
+        "Ninja": true
+    }
+}
