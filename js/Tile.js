@@ -112,6 +112,11 @@ class Tile {
         this.render();
     }
     
+    show() {
+        this.hidden = false;
+        this.render();
+    }
+    
     // vector: 1 or -1
     revert(vector, callback) {
         clearInterval( this.animation.interval );

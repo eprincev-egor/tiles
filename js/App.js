@@ -1,11 +1,8 @@
 "use strict";
 
-var REVERT_SPEED = 5;
-
 class App {
     constructor() {
-        this.el = document.querySelector(".game");
-        this.el.addEventListener("click", this.onClickTile.bind(this));
+        this.initElems();
         
         window.addEventListener("resize", this.onResize.bind(this));
         this.onResize();
@@ -22,6 +19,32 @@ class App {
         this.playSound("bg", {loop: true});
     }
     
+    initElems() {
+        this.el = document.createElement("div");
+        this.el.className = "App";
+        
+        var tilesBox = document.createElement("div");
+        tilesBox.className = "App--tiles";
+        this.el.appendChild(tilesBox);
+        
+        var starsBox = document.createElement("div");
+        starsBox.className = "App--stars";
+        starsBox.innerHTML = [
+            "<div class='App--star App--star1'></div>",
+            "<div class='App--star App--star2'></div>",
+            "<div class='App--star App--star3'></div>"
+        ].join("");
+        this.el.appendChild(starsBox);
+        
+        this.ui = {
+            tiles: tilesBox,
+            stars: starsBox
+        };
+        
+        document.body.appendChild(this.el);
+        this.ui.tiles.addEventListener("click", this.onClickTile.bind(this));
+    }
+    
     newGame() {
         var game = this.games[ this.gameIndex ];
         if ( !game ) {
@@ -32,10 +55,13 @@ class App {
         var n = game.n,
             m = game.m;
         
-        this.clicked = [];
-        this.el.innerHTML = "";
+        this.hideStars();
+        
+        this.clicked = false;
+        this.ui.tiles.innerHTML = "";
         this.matrix = this.createTileMatrix(n, m);
         this.successCount = 0;
+        this.revertsCount = 0;
         
         this.gameIndex++;
     }
@@ -97,7 +123,7 @@ class App {
                 });
                 
                 matrix[i][j] = tile;
-                this.el.appendChild( tile.el );
+                this.ui.tiles.appendChild( tile.el );
                 
                 l++;
             }
@@ -108,6 +134,15 @@ class App {
     
     onClickTile(e) {
         e.preventDefault();
+        
+        if ( this._animateWin ) {
+            return;
+        }
+        
+        if ( this._clickedAnimation ) {
+            return;
+        }
+        
         var tileElem = e.target,
             tile = tileElem.tile;
         
@@ -119,52 +154,59 @@ class App {
             return;
         }
         
-        if ( this.clicked.length > 2 ) {
+        if ( !this.clicked ) {
+            this.playSound("revert");
+            this.clicked = tile;
+            tile.revert(1);
             return;
         }
         
-        var clickedIndex = this.clicked.indexOf(tile);
-        if ( clickedIndex != -1 ) {
-            this.clicked.splice(clickedIndex, 1);
+        if ( this.clicked === tile ) {
+            this.playSound("revert");
             tile.revert(-1);
+            this.clicked = false;
             return;
         }
         
-        this.clicked.push(tile);
-        this.playSound("revert");
+        // has prev clicked tile
+        // and 
+        // prev clicked tile != it tile
+        this._clickedAnimation = true;
         
-        if ( this.clicked.length >= 2 ) {
-            tile.revert(1, function() {
-                var isWrongAnimals = this.clicked[0].animal != this.clicked[1].animal;
+        this.playSound("revert");
+        tile.revert(1, function() {
+            setTimeout(function() {
                 
-                if ( isWrongAnimals ) {
-                    for (var i=0, n=this.clicked.length; i<n; i++) {
-                        var tile = this.clicked[ i ];
-                        tile.revert(-1);
-                    }
-                } else {
-                    this.success(this.clicked[0], this.clicked[1]);
+                tile.revert(-1);
+                this.clicked.revert(-1);
+                
+                this._clickedAnimation = false;
+                this.revertsCount++;
+                
+                    
+                if ( this.clicked.animal == tile.animal ) {
+                    this.success(this.clicked, tile);
                 }
                 
-                this.clicked = [];
-            }.bind(this));
-        } else {
-            tile.revert(1);
-        }
+                this.clicked = false;
+                
+            }.bind(this), 500);
+        }.bind(this));
     }
     
     success(tile1, tile2) {
         tile1.hide();
         tile2.hide();
         
-        this.successCount += 2;
+        this.successCount++;
         
         var n = this.matrix.length,
             m = this.matrix[0].length;
         
-        if ( this.successCount >= n * m ) {
-            this.newGame();
-            this.playSound("win");
+        if ( this.successCount * 2 >= n * m ) {
+            this.animateWin(function() {
+                this.newGame();
+            }.bind(this));
         }
     }
     
@@ -188,4 +230,81 @@ class App {
         
         sound.innerHTML = '<source src="sounds/'+ src +'.mp3" />';
 	}
+    
+    hideStars() {
+        this.ui.stars.className = "App--stars";
+    }
+    
+    showStars(callback) {
+        if ( !f.isFunction(callback) ) {
+            callback = function() {};
+        }
+        
+        this.ui.stars.className = "App--stars";
+        
+        var starsCount,
+            prop = this.revertsCount / this.successCount;
+            
+        console.log(
+            "reverts: " + this.revertsCount, 
+            "success: " + this.successCount
+        );
+        
+        if ( prop >= 3 ) {
+            starsCount = 1;
+        } 
+        else if ( prop >= 2.1 ) {
+            starsCount = 2;
+        } 
+        else {
+            starsCount = 3;
+        }
+        
+        this.ui.stars.className = "App--stars stars-1";
+        this.playSound("ring");
+        
+        clearInterval(this._starsInterval);
+        if ( starsCount === 1 ) {
+            setTimeout(callback, 300);
+            return;
+        }
+        
+        var i = 2;
+        this._starsInterval = setInterval(function() {
+            this.playSound("ring");
+            this.ui.stars.className = "App--stars stars-" + i;
+            i++;
+            
+            if ( i > starsCount ) {
+                clearInterval(this._starsInterval);
+                setTimeout(callback, 300);
+            }
+        }.bind(this), 300);
+    }
+    
+    animateWin(callback) {
+        if ( !f.isFunction(callback) ) {
+            callback = function() {};
+        }
+        
+        this._animateWin = true;
+        for (var i=0, n=this.matrix.length; i<n; i++) {
+            for (var j=0, m=this.matrix[i].length; j<m; j++) {
+                var tile = this.matrix[i][j];
+                
+                tile.show();
+                tile.revert(1);
+            }
+        }
+        
+        this.showStars(function() {
+            this._animateWin = false;
+            this.playSound("win");
+            
+            setTimeout(function() {
+                callback();
+            }.bind(this), 2000);
+        }.bind(this));
+        
+    }
 }
