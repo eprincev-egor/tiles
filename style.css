@@ -60,6 +60,10 @@ html, body {
     background-position: 100%;
 }
 
+.Tile.reverted .front:before {
+    opacity: 0;
+}
+
 .Tile .back {
     content: "";
     position: absolute;

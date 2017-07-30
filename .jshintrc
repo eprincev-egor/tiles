@@ -6,12 +6,8 @@
     "globals": {
         "console": true,
         "f": true,
-        "Game": true,
-        "Keyboard": true,
         "App": true,
         "Events": true,
-        "MouseControl": true,
-        "Polygon": true,
-        "Ninja": true
+        "Tile": true
     }
 }

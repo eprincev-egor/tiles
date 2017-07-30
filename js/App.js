@@ -33,9 +33,8 @@ class App {
             m = game.m;
         
         this.clicked = [];
-        this.matrix = this.createTileMatrix(n, m);
         this.el.innerHTML = "";
-        this.renderTilesMatrix(this.matrix);
+        this.matrix = this.createTileMatrix(n, m);
         this.successCount = 0;
         
         this.gameIndex++;
@@ -69,6 +68,7 @@ class App {
             i, j, l,
             stack = [],
             rndIndex, rndAnimal,
+            tile,
             animals = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,16];
         
         for (i=0, l = n * m / 2; i<l; i++) {
@@ -89,50 +89,21 @@ class App {
             
             for (j=0; j<m; j++) {
                 
-                matrix[i][j] = {
+                tile = new Tile({
                     animal: stack[ l ],
                     x: i,
                     y: j,
                     size: size
-                };
+                });
+                
+                matrix[i][j] = tile;
+                this.el.appendChild( tile.el );
+                
                 l++;
             }
         }
         
         return matrix;
-    }
-    
-    renderTilesMatrix(matrix) {
-        var line;
-        
-        for (var i=0, n=matrix.length; i<n; i++) {
-            line = matrix[i];
-            
-            for (var j=0, m=line.length; j<m; j++) {
-                var tile = line[j],
-                    size = tile.size;
-                
-                var elem = document.createElement("div");
-                elem.className = "Tile animal-" + tile.animal;
-                
-                elem.innerHTML = "<div class='back'></div><div class='front'></div>";
-                
-                elem.style.width = size + "%";
-                elem.style.height = size + "%";
-                elem.style.left = i * size + "%";
-                elem.style.top = j * size + "%";
-                
-                tile.el = elem;
-                tile.frontEl = elem.querySelector(".front");
-                tile.backEl = elem.querySelector(".back");
-                
-                elem.tile = tile;
-                tile.frontEl.tile = tile;
-                tile.backEl.tile = tile;
-                
-                this.el.appendChild(elem);
-            }
-        }
     }
     
     onClickTile(e) {
@@ -160,89 +131,25 @@ class App {
         this.playSound("revert");
         
         if ( this.clicked.length == 2 ) {
-            this.animateRevert(tile, REVERT_SPEED, function() {
+            tile.revert(1, function() {
                 
                 if ( this.clicked[0].animal == this.clicked[1].animal ) {
                     this.success(this.clicked[0], this.clicked[1]);
                 } else {
-                    this.animateRevert(this.clicked[0], -REVERT_SPEED);
-                    this.animateRevert(this.clicked[1], -REVERT_SPEED);
+                    this.clicked[0].revert(-1);
+                    this.clicked[1].revert(-1);
                 }
                 
                 this.clicked = [];
             }.bind(this));
         } else {
-            this.animateRevert(tile, REVERT_SPEED);
+            tile.revert(1);
         }
     }
     
-    animateRevert(tile, vector, callback) {
-        if ( tile.animation ) {
-            clearInterval( tile.animation.interval );
-            
-            if ( tile.animation.vector != vector ) {
-                tile.animation.state = 100 - tile.animation.state;
-            }
-        } else {
-            tile.animation = {
-                vector: vector,
-                state: 0
-            };
-        }
-        
-        tile.animation.interval = setInterval(
-            this.onIntervalAnimation.bind(this, tile, vector, callback), 
-        30);
-    }
-    
-    onIntervalAnimation(tile, vector, callback) {
-        if ( !f.isFunction(callback) ) {
-            callback = function() {};
-        }
-        
-        var state = tile.animation.state;
-        tile.animation.state += vector;
-        
-        if ( vector > 0 ) {
-            if ( state > 100 ) {
-                tile.animation.state = 100;
-                clearInterval(tile.animation.interval);
-                callback();
-                return;
-            }
-        } else {
-            if ( state < 0 ) {
-                tile.animation.state = 0;
-                clearInterval(tile.animation.interval);
-                callback();
-                return;
-            }
-        }
-        
-        
-        var rotate = (state / 100) * 180,
-            style = "transform: rotateY("+ rotate +"deg);",
-            frontStyle = style,
-            backStyle = style;
-        
-        if ( rotate >= 90 )  {
-            frontStyle += "z-index: 1;";
-            backStyle += "z-index: 2;";
-        } else {
-            frontStyle += "z-index: 2;";
-            backStyle += "z-index: 1;";
-        }
-        
-        tile.frontEl.setAttribute("style", frontStyle);
-        tile.backEl.setAttribute("style", backStyle);
-    }
-    
-    success(firstTile, secondTile) {
-        firstTile.succes = secondTile;
-        secondTile.success = firstTile;
-        
-        this.hideTile(firstTile);
-        this.hideTile(secondTile);
+    success(tile1, tile2) {
+        tile1.hide();
+        tile2.hide();
         
         this.successCount += 2;
         
@@ -253,11 +160,6 @@ class App {
             this.newGame();
             this.playSound("win");
         }
-    }
-    
-    hideTile(tile) {
-        tile.el.className = "Tile animal-"+ tile.animal +" hide";
-        tile.hidden = true;
     }
     
     congratulations() {
