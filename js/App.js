@@ -123,21 +123,27 @@ class App {
             return;
         }
         
-        if ( this.clicked.indexOf(tile) != -1 ) {
+        var clickedIndex = this.clicked.indexOf(tile);
+        if ( clickedIndex != -1 ) {
+            this.clicked.splice(clickedIndex, 1);
+            tile.revert(-1);
             return;
         }
         
         this.clicked.push(tile);
         this.playSound("revert");
         
-        if ( this.clicked.length == 2 ) {
+        if ( this.clicked.length >= 2 ) {
             tile.revert(1, function() {
+                var isWrongAnimals = this.clicked[0].animal != this.clicked[1].animal;
                 
-                if ( this.clicked[0].animal == this.clicked[1].animal ) {
-                    this.success(this.clicked[0], this.clicked[1]);
+                if ( isWrongAnimals ) {
+                    for (var i=0, n=this.clicked.length; i<n; i++) {
+                        var tile = this.clicked[ i ];
+                        tile.revert(-1);
+                    }
                 } else {
-                    this.clicked[0].revert(-1);
-                    this.clicked[1].revert(-1);
+                    this.success(this.clicked[0], this.clicked[1]);
                 }
                 
                 this.clicked = [];
